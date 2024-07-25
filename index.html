@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Exemplo multiplayer</title>
+</head>
+
+<body>
+    <canvas id="canvas">Seu navegador não suporta a API do canvas 😢!</canvas>
+    <script>
+        const getRandomInt = (max) => {
+            return Math.floor(Math.random() * max);
+        }
+
+        const canvas = document.getElementById("canvas");
+        const width = 800;
+        const height = 800;
+        canvas.width = width;
+        canvas.height = height;
+        let posX = 20;
+        let posY = 20;
+        let velX = 5;
+        let velY = 5;
+        const ctx = canvas.getContext("2d");
+
+        const ws = new WebSocket("ws://localhost:8089/server");
+
+        const colors = [
+            "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
+            "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson",
+            "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "DarkOrange",
+            "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue",
+            "DimGray", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod",
+            "Gray", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender",
+            "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGreen", "LightPink",
+            "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta",
+            "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed",
+            "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange",
+            "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink",
+            "Plum", "PowderBlue", "Purple", "RebeccaPurple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown",
+            "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray", "Snow", "SpringGreen", "SteelBlue",
+            "Tan", "Teal", "Thistle", "Tomato", "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow",
+            "YellowGreen"
+        ];
+        const names = [
+            "Aaron", "Abigail", "Adam", "Adrian", "Aiden", "Alex", "Alexa", "Alexander", "Alexis", "Alice",
+            "Alicia", "Allison", "Alyssa", "Amelia", "Andrew", "Angela", "Anna", "Anthony", "April", "Arthur",
+            "Ashley", "Austin", "Ava", "Barbara", "Benjamin", "Beth", "Beverly", "Blake", "Brandon", "Brenda",
+            "Brian", "Brittany", "Brooke", "Bruce", "Bryan", "Caleb", "Cameron", "Carlos", "Carol", "Caroline",
+            "Catherine", "Chad", "Charles", "Charlotte", "Chloe", "Chris", "Christina", "Christine", "Christopher", "Cindy",
+            "Claire", "Clara", "Colin", "Connor", "Courtney", "Craig", "Daniel", "Danielle", "David", "Diana",
+            "Dylan", "Edward", "Elena", "Eli", "Elijah", "Elizabeth", "Ella", "Emily", "Emma", "Eric",
+            "Erin", "Ethan", "Eva", "Evelyn", "Faith", "Felix", "Fiona", "Frank", "Gabriel", "Gavin",
+            "George", "Grace", "Greg", "Hannah", "Harper", "Hayden", "Heather", "Henry", "Holly", "Ian",
+            "Isaac", "Isabella", "Isaiah", "Ivy", "Jack", "Jacob", "Jaden", "Jake", "James", "Jane"
+        ];
+        const myName = names[getRandomInt(names.length)]
+        const myColor = colors[getRandomInt(colors.length)]
+        let arr = []
+        console.log(myColor)
+
+        ws.addEventListener("open", () => {
+            console.log("websocket connection opened!")
+            ws.send("init;" + myName + ";" + myColor + ";" + posX + "," + posY)
+        })
+        ws.addEventListener("close", () => {
+            console.log("websocket connection closed!")
+        })
+        ws.addEventListener("error", (err) => {
+            console.log("websocket connection error:", err)
+        })
+        ws.addEventListener("message", (msg) => {
+            arr = msg.data.split(";").slice(1)
+            console.log("rcv:", msg.data)
+        })
+
+        let moveBuffer = [false, false, false, false];
+        const render = () => {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < arr.length; i += 3) {
+                ctx.fillStyle = arr[i + 1];
+                console.log(arr[i], arr[i + 1], arr[i + 2]);
+                let points = arr[i + 2].split(",")
+                ctx.fillRect(Number(points[0]), Number(points[1]), 60, 60);
+            }
+
+            ctx.fillStyle = myColor;
+            ctx.fillRect(posX, posY, 60, 60);
+            if (ws.readyState == WebSocket.OPEN) {
+                ws.send("move;" + posX + "," + posY)
+            }
+            mover();
+            window.requestAnimationFrame(render)
+        }
+
+        const mover = () => {
+            if (moveBuffer[0]) {
+                posY -= velY;
+            }
+            if (moveBuffer[1]) {
+                posX -= velX;
+            }
+            if (moveBuffer[2]) {
+                posY += velY;
+            }
+            if (moveBuffer[3]) {
+                posX += velX;
+            }
+        }
+
+        document.addEventListener("keydown", (event) => {
+            switch (event.keyCode) {
+                case 87: //w
+                    moveBuffer[0] = true;
+                    break;
+                case 65: //a
+                    posX -= velX;
+                    moveBuffer[1] = true;
+                    break;
+                case 83: //s
+                    posY += velY;
+                    moveBuffer[2] = true;
+                    break;
+                case 68: //d
+                    posX += velX;
+                    moveBuffer[3] = true;
+                    break;
+                default:
+                    break;
+            }
+        })
+        document.addEventListener("keyup", (event) => {
+            switch (event.keyCode) {
+                case 87: //w
+                    moveBuffer[0] = false;
+                    break;
+                case 65: //a
+                    moveBuffer[1] = false;
+                    break;
+                case 83: //s
+                    moveBuffer[2] = false;
+                    break;
+                case 68: //d
+                    moveBuffer[3] = false;
+                    break;
+                default:
+                    break;
+            }
+        })
+        window.requestAnimationFrame(render);
+    </script>
+</body>
+
+</html>
