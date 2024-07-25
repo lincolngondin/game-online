@@ -24,7 +24,7 @@
         let velY = 5;
         const ctx = canvas.getContext("2d");
 
-        const ws = new WebSocket("ws://localhost:8089/server");
+        const ws = new WebSocket({{ . }});
 
         const colors = [
             "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue",
@@ -58,7 +58,6 @@
         const myName = names[getRandomInt(names.length)]
         const myColor = colors[getRandomInt(colors.length)]
         let arr = []
-        console.log(myColor)
 
         ws.addEventListener("open", () => {
             console.log("websocket connection opened!")
