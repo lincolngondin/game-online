@@ -61,7 +61,7 @@
 
         ws.addEventListener("open", () => {
             console.log("websocket connection opened!")
-            ws.send("init;" + myName + ";" + myColor + ";" + posX + "," + posY)
+            ws.send("init;" + myName + ";" + myColor + ";" + posX + ";" + posY)
         })
         ws.addEventListener("close", () => {
             console.log("websocket connection closed!")
@@ -79,17 +79,15 @@
             ctx.fillStyle = "black";
             ctx.fillRect(0, 0, width, height);
 
-            for (let i = 0; i < arr.length; i += 3) {
+            for (let i = 0; i < arr.length; i += 4) {
                 ctx.fillStyle = arr[i + 1];
-                console.log(arr[i], arr[i + 1], arr[i + 2]);
-                let points = arr[i + 2].split(",")
-                ctx.fillRect(Number(points[0]), Number(points[1]), 60, 60);
+                ctx.fillRect(Number(arr[i + 2]), Number(arr[i+3]), 60, 60);
             }
 
             ctx.fillStyle = myColor;
             ctx.fillRect(posX, posY, 60, 60);
             if (ws.readyState == WebSocket.OPEN) {
-                ws.send("move;" + posX + "," + posY)
+                ws.send("move;" + posX + ";" + posY)
             }
             mover();
             window.requestAnimationFrame(render)
