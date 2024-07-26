@@ -25,32 +25,36 @@ var gameState game = game{
 	players: make(map[playerId]*player, 1000),
 }
 
+type playerState struct {
+    player *player
+}
+
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	var thisPlayer *player
+	var thisPlayer *playerState = &playerState{player: nil}
 	// receive message of player
 	go receiveMessagesPlayer(thisPlayer, wsConn)
 	// write messages to player
 	sendMessagesPlayer(thisPlayer, wsConn)
 }
 
-func receiveMessagesPlayer(player *player, wsConn *websocket.Conn) {
+func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 	for {
 		// receive messages from player (movements)
 		readedMessageType, readedMessage, readErr := wsConn.ReadMessage()
 		if readErr != nil {
 			log.Println("error reading message: ", readErr)
 			wsConn.Close()
-			delete(gameState.players, player.id)
+			delete(gameState.players, state.player.id)
 			break
 		}
 		if readedMessageType == websocket.CloseMessage {
 			log.Println("client has closed the connection!", readErr)
-			delete(gameState.players, player.id)
+			delete(gameState.players, state.player.id)
 			break
 		}
 		if readedMessageType != websocket.TextMessage {
@@ -65,7 +69,7 @@ func receiveMessagesPlayer(player *player, wsConn *websocket.Conn) {
 		}
 
 		if msg.messageType == messageTypeInit {
-			if player != nil {
+			if state.player != nil {
 				log.Println("player already created")
 				continue
 			}
@@ -76,13 +80,13 @@ func receiveMessagesPlayer(player *player, wsConn *websocket.Conn) {
 				continue
 			}
 
-			player = newPlayer(initMessage.name, initMessage.color, initMessage.initialPosition)
-			gameState.players[player.id] = player
+			state.player = newPlayer(initMessage.name, initMessage.color, initMessage.initialPosition)
+			gameState.players[state.player.id] = state.player
 			continue
 		}
 
 		if msg.messageType == messageTypeMove {
-			if player == nil {
+			if state.player == nil {
 				log.Println("player not created yet!")
 				continue
 			}
@@ -92,20 +96,20 @@ func receiveMessagesPlayer(player *player, wsConn *websocket.Conn) {
 				log.Println(errMoveMessage)
 				continue
 			}
-			if gameState.players[player.id] != nil {
-				gameState.players[player.id].position.x = moveMessage.position.x
-				gameState.players[player.id].position.y = moveMessage.position.y
+			if gameState.players[state.player.id] != nil {
+				gameState.players[state.player.id].position.x = moveMessage.position.x
+				gameState.players[state.player.id].position.y = moveMessage.position.y
 			}
 		}
 	}
 }
 
-func sendMessagesPlayer(player *player, wsConn *websocket.Conn) {
+func sendMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 	for {
 		builder := strings.Builder{}
 		builder.WriteString("pos")
 		for key, value := range gameState.players {
-			if player != nil && key == player.id {
+			if state.player != nil && key == state.player.id {
 				continue
 			}
 			builder.WriteString(fmt.Sprintf(";%s;%s;%d;%d", value.name, value.color, value.position.x, value.position.y))
