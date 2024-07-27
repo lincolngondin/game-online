@@ -5,17 +5,12 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 const timeSendUpdates = time.Millisecond * 10
-
-type game struct {
-	players map[playerId]*player
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -26,7 +21,7 @@ var gameState game = game{
 }
 
 type playerState struct {
-    player *player
+	player *player
 }
 
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,12 +44,12 @@ func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 		if readErr != nil {
 			log.Println("error reading message: ", readErr)
 			wsConn.Close()
-			delete(gameState.players, state.player.id)
+			gameState.removePlayer(state.player.id)
 			break
 		}
 		if readedMessageType == websocket.CloseMessage {
 			log.Println("client has closed the connection!", readErr)
-			delete(gameState.players, state.player.id)
+			gameState.removePlayer(state.player.id)
 			break
 		}
 		if readedMessageType != websocket.TextMessage {
@@ -81,7 +76,7 @@ func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 			}
 
 			state.player = newPlayer(initMessage.name, initMessage.color, initMessage.initialPosition)
-			gameState.players[state.player.id] = state.player
+			gameState.initPlayer(state.player.id, state.player)
 			continue
 		}
 
@@ -96,26 +91,15 @@ func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 				log.Println(errMoveMessage)
 				continue
 			}
-			if gameState.players[state.player.id] != nil {
-				gameState.players[state.player.id].position.x = moveMessage.position.x
-				gameState.players[state.player.id].position.y = moveMessage.position.y
-			}
+			gameState.updatePlayer(state.player.id, moveMessage.position)
 		}
 	}
 }
 
 func sendMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 	for {
-		builder := strings.Builder{}
-		builder.WriteString("pos")
-		for key, value := range gameState.players {
-			if state.player != nil && key == state.player.id {
-				continue
-			}
-			builder.WriteString(fmt.Sprintf(";%s;%s;%d;%d", value.name, value.color, value.position.x, value.position.y))
-		}
-		str := builder.String()
-		err := wsConn.WriteMessage(websocket.TextMessage, []byte(str))
+		msg := gameState.getPositionMessage(state)
+		err := wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
 		if err != nil {
 			log.Println("error writing message: ", err)
 			break
