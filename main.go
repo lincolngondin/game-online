@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -35,6 +38,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	go receiveMessagesPlayer(thisPlayer, wsConn)
 	// write messages to player
 	sendMessagesPlayer(thisPlayer, wsConn)
+    log.Println("exiting websocket handler")
 }
 
 func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
@@ -94,6 +98,7 @@ func receiveMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 			gameState.updatePlayer(state.player.id, moveMessage.position)
 		}
 	}
+    log.Println("exiting receive messages players!")
 }
 
 func sendMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
@@ -106,6 +111,7 @@ func sendMessagesPlayer(state *playerState, wsConn *websocket.Conn) {
 		}
 		time.Sleep(timeSendUpdates)
 	}
+    log.Println("exiting send messages players!")
 }
 
 func main() {
@@ -127,5 +133,20 @@ func main() {
 
 	mux.HandleFunc("/server", websocketHandler)
 
-	server.ListenAndServe()
+    var ch chan os.Signal = make(chan os.Signal, 1)
+    var chExit chan struct{} = make(chan struct{})
+    signal.Notify(ch, os.Interrupt)
+
+    go func(){
+        err := server.ListenAndServe()
+        if err == http.ErrServerClosed {
+            log.Println("server closed!")
+        }
+        chExit<-struct{}{}
+    }()
+
+    <-ch
+    log.Println("closing server!")
+    server.Shutdown(context.Background())
+    <-chExit
 }
